@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Explorers Memory Game</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .game-container {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      backdrop-filter: blur(4px);
+    }
+
+    .game-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .time {
+      color: red;
+      font-weight: bold;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      max-width: 600px;
+    }
+
+    .card {
+      width: 120px;
+      height: 120px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      transform-style: preserve-3d;
+      overflow: hidden;
+    }
+
+    .card.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card.matched {
+      opacity: 0;
+      transform: scale(0.1);
+      transition: all 0.5s ease-out;
+    }
+
+    .card-front,
+    .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 10px;
+    }
+
+    .card-back {
+      background-color: rgba(255, 255, 255, 0.3);
+      transform: rotateY(180deg);
+    }
+
+    .card-back::before {
+      content: '?';
+      font-size: 48px;
+      color: white;
+    }
+
+    .card-front {
+      background-color: #2c3e50;
+      transform: rotateY(0deg);
+    }
+
+    .card-front img {
+      max-width: 80%;
+      max-height: 80%;
+      object-fit: contain;
+    }
+
+    .restart-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .restart-btn:hover {
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game-container">
+    <div class="game-info">
+      <div>Moves: <span id="moves">0</span></div>
+      <div>Time: <span id="time" class="time">59</span>s</div>
+    </div>
+    <div class="card-grid" id="game-board"></div>
+    <button class="restart-btn" onclick="restartGame()">Restart Game</button>
+  </div>
+
+  <script>
+    // Updated image array with backup images
+    const images = [
+      'https://img.icons8.com/color/96/000000/rocket.png',
+      'https://img.icons8.com/color/96/000000/alien.png',
+      'https://img.icons8.com/color/96/000000/stardust.png',
+      'https://img.icons8.com/color/96/000000/earth-planet.png',
+      'https://img.icons8.com/color/96/000000/star.png',
+      'https://img.icons8.com/color/96/000000/satellite.png',
+      'https://img.icons8.com/color/96/000000/moon.png',
+      'https://img.icons8.com/color/96/000000/galaxy.png'
+    ];
+
+    let cards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let moves = 0;
+    let timer;
+    let timeLeft = 59;
+
+    function createBoard() {
+      const gameBoard = document.getElementById('game-board');
+      const duplicatedImages = [...images, ...images];
+      const shuffledImages = shuffleArray(duplicatedImages);
+
+      gameBoard.innerHTML = '';
+      shuffledImages.forEach((imageSrc, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.innerHTML = `
+                    <div class="card-back"></div>
+                    <div class="card-front">
+                        <img src="${imageSrc}" alt="Card Image" onerror="this.src='https://via.placeholder.com/96?text=Space'">
+                    </div>
+                `;
+        card.addEventListener('click', () => flipCard(card, imageSrc));
+        gameBoard.appendChild(card);
+      });
+
+      startTimer();
+    }
+
+    function flipCard(card, imageSrc) {
+      if (flippedCards.length < 2 && !card.classList.contains('flipped')) {
+        card.classList.add('flipped');
+        flippedCards.push({ card, imageSrc });
+
+        if (flippedCards.length === 2) {
+          moves++;
+          document.getElementById('moves').textContent = moves;
+          setTimeout(checkMatch, 1000);
+        }
+      }
+    }
+
+    function checkMatch() {
+      const [first, second] = flippedCards;
+
+      if (first.imageSrc === second.imageSrc) {
+        first.card.classList.add('matched');
+        second.card.classList.add('matched');
+        matchedPairs++;
+
+        if (matchedPairs === images.length) {
+          clearInterval(timer);
+          setTimeout(() => {
+            alert(`Congratulations! You won in ${moves} moves with ${timeLeft} seconds left!`);
+          }, 500);
+        }
+      } else {
+        first.card.classList.remove('flipped');
+        second.card.classList.remove('flipped');
+      }
+
+      flippedCards = [];
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function startTimer() {
+      timeLeft = 59;
+      document.getElementById('time').textContent = timeLeft;
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById('time').textContent = timeLeft;
+
+        // Change timer color to red when time is running low
+        if (timeLeft <= 10) {
+          document.getElementById('time').style.color = 'red';
+        }
+
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          gameOver();
+        }
+      }, 1000);
+    }
+
+    function gameOver() {
+      alert('Time is up! Game Over');
+      restartGame();
+    }
+
+    function restartGame() {
+      clearInterval(timer);
+      matchedPairs = 0;
+      moves = 0;
+      document.getElementById('moves').textContent = moves;
+      document.getElementById('time').style.color = 'red';
+      createBoard();
+    }
+
+    // Initialize the game
+    createBoard();
+  </script>
+</body>
+
+</html>
